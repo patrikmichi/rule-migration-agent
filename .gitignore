@@ -1,0 +1,36 @@
+# Migration state files (project-specific, can be gitignored)
+.migration-state.json
+.migration-history.json
+.migration-preferences.json
+.migration-validation.json
+.migration-conflicts.json
+
+# Backup files created by migration agent
+*.backup.*
+
+# Cache directory
+.cache/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# PyPI build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg

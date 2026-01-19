@@ -1,0 +1,16 @@
+{
+  "name": "rule-migration-agent",
+  "repository": "https://github.com/patrikmichi/rule-migration-agent",
+  "owner": {
+    "name": "patrikmichi",
+    "url": "https://github.com/patrikmichi"
+  },
+  "plugins": [
+    {
+      "name": "rule-migration-agent",
+      "source": "./claude-code-plugin",
+      "description": "Convert between Cursor rules and Claude Skills",
+      "version": "1.0.0"
+    }
+  ]
+}

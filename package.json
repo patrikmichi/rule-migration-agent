@@ -1,0 +1,38 @@
+{
+  "name": "rule-migration-agent",
+  "version": "1.0.0",
+  "description": "Bidirectional conversion tool for migrating between Cursor rules (.cursor/rules) and Claude Skills (.claude/skills)",
+  "main": "instructions.md",
+  "keywords": [
+    "cursor",
+    "claude",
+    "rules",
+    "skills",
+    "migration",
+    "conversion",
+    "claude-plugin"
+  ],
+  "author": "",
+  "license": "MIT",
+  "claudeCode": {
+    "instructions": "instructions.md"
+  },
+  "files": [
+    ".claude-plugin",
+    "instructions.md",
+    "README.md",
+    "migrate.py",
+    "converters.py",
+    "parsers.py",
+    "validation.py",
+    "utils.py",
+    "memory.py",
+    "memory_commands.py",
+    "config.py",
+    "setup.py",
+    "requirements.txt",
+    "QUICKSTART.md",
+    "CONTRIBUTING.md",
+    "CHANGELOG.md"
+  ]
+}
