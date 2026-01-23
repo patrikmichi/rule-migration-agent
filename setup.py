@@ -1,5 +1,5 @@
 """
-Setup script for rule-migration-agent GitHub Packages package.
+Setup script for rule-migration-agent PyPI package.
 """
 
 from setuptools import setup, find_packages

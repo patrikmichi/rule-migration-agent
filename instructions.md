@@ -16,7 +16,7 @@ This plugin extends Claude Code with:
 - `/setup` - Install and configure the agent (Python, dependencies, configuration)
 
 **Important**: This plugin provides commands and skills (Markdown files). The Python tools are installed separately via the `/setup` command, which:
-1. Tries to install via pip (if published to GitHub Packages)
+1. Tries to install via pip (if published to PyPI)
 2. Falls back to cloning from GitHub: https://github.com/patrikmichi/rule-migration-agent
 3. Runs the setup script to install dependencies
 

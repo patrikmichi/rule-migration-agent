@@ -1,4 +1,4 @@
-name: Publish to GitHub Packages
+name: Publish to PyPI
 
 on:
   release:
@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
+      id-token: write  # Required for Trusted Publishing
     
     steps:
       - name: Check out code
@@ -35,10 +35,7 @@ jobs:
       - name: Check package
         run: python -m twine check dist/*
 
-      - name: Publish to GitHub Packages
-        env:
-          TWINE_USERNAME: ${{ github.actor }}
-          TWINE_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-          TWINE_REPOSITORY_URL: https://pypi.pkg.github.com/${{ github.repository }}/
-        run: |
-          python -m twine upload dist/*
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true

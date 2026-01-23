@@ -7,16 +7,11 @@ A production-ready bidirectional conversion tool for migrating between **Cursor 
 
 ## Installation
 
-### Option 1: Install via GitHub Packages (Recommended)
-
-To install from GitHub Packages, you'll need to configure your environment to use the GitHub registry.
+### Option 1: Install via PyPI (Recommended)
 
 ```bash
-# Configure pip to use GitHub Packages (replace OWNER with patrikmichi)
-pip install rule-migration-agent --index-url https://pypi.pkg.github.com/OWNER/
+pip install rule-migration-agent
 ```
-
-Or, for easier global use, add the registry to your `~/.pip/pip.conf` or equivalent.
 
 After installation, use the command:
 ```bash
