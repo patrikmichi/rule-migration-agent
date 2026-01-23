@@ -1,3 +1,9 @@
+---
+name: setup
+user-invocable: true
+description: "Command: setup"
+---
+
 # Setup Rule Migration Agent
 
 Fully automated setup - installs Python (if needed), dependencies, and configures the agent.
@@ -5,12 +11,12 @@ Fully automated setup - installs Python (if needed), dependencies, and configure
 ## Usage
 
 ```
-/setup-agent
+/setup
 ```
 
 ## AI Instructions
 
-When the user runs `/setup-agent`, you should:
+When the user runs `/setup`, you should:
 
 1. **Locate the agent directory** - Find `agents/rule-migration-agent/` in the current project
 2. **Run the setup script** - Execute `python3 agents/rule-migration-agent/setup.py` (or `python setup.py` on Windows)
@@ -43,7 +49,7 @@ Or if the agent is in a different location, adjust the path accordingly.
 
 ## How it works
 
-When you run `/setup-agent`, the AI will:
+When you run `/setup`, the AI will:
 
 1. **Locate the agent directory** - Finds `agents/rule-migration-agent/` in your project
 2. **Run automated setup script** - Executes `setup.py` which:
@@ -95,11 +101,11 @@ validation:
 
 ## Examples
 
-- `/setup-agent` - Run full automated setup
+- `/setup` - Run full automated setup
 
 ## Next Steps
 
-After running `/setup-agent`:
+After running `/setup`:
 
 1. **Migrate your first project:**
    ```
@@ -144,7 +150,7 @@ After running `/setup-agent`:
 
 - The agent is installed locally in your project (not globally)
 - Dependencies are installed in your current Python environment
-- For virtual environments, activate it before running `/setup-agent`
+- For virtual environments, activate it before running `/setup`
 - Automatic Python installation works best on macOS (with Homebrew) and Linux (with package manager)
 
 ## Manual Setup (if automated setup fails)
@@ -165,3 +171,4 @@ pip install -r requirements.txt
 # 4. Verify
 python3 migrate.py --help
 ```
+

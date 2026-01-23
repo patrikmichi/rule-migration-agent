@@ -10,7 +10,7 @@
       "name": "rule-migration-agent",
       "source": "./claude-code-plugin",
       "description": "Convert between Cursor rules and Claude Skills",
-      "version": "1.0.0"
+      "version": "1.1.0"
     }
   ]
 }

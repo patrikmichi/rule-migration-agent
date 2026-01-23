@@ -1,3 +1,9 @@
+---
+name: setup
+user-invocable: true
+description: "Command: setup"
+---
+
 # Setup Rule Migration Agent
 
 Fully automated setup - installs Python (if needed), dependencies, and configures the agent.
@@ -95,11 +101,11 @@ validation:
 
 ## Examples
 
-- `/setup-agent` - Run full automated setup
+- `/setup` - Run full automated setup
 
 ## Next Steps
 
-After running `/setup-agent`:
+After running `/setup`:
 
 1. **Migrate your first project:**
    ```
@@ -165,3 +171,4 @@ pip install -r requirements.txt
 # 4. Verify
 python3 migrate.py --help
 ```
+

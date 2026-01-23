@@ -48,7 +48,7 @@ except ImportError:
     class MigrationStateManager:
         def __init__(self, *args, **kwargs): pass
         def has_changed(self, *args, **kwargs): return True
-        def update_rule_state(self, *args, **kwargs): pass
+        def update_state(self, *args, **kwargs): pass
         def save(self): pass
     class DocumentationCache:
         def __init__(self, *args, **kwargs): pass
@@ -101,15 +101,20 @@ def _process_single_cursor_rule(rule_file: Path, project_path: Path, force: bool
     errors = []
     warnings = []
     
+    # Determine if this is a command (from .cursor/commands/)
+    is_command = ".cursor/commands" in str(rule_file)
+    
     # Check if file has changed (skip unchanged if enabled)
     if skip_unchanged and state_manager and MEMORY_AVAILABLE:
-        if not state_manager.has_changed(rule_file, "cursor"):
+        track_type = "cursor_command" if is_command else "cursor"
+        if not state_manager.has_changed(rule_file, track_type):
             if verbose:
                 print_dim(f"⏭️  Skipping {rule_file.name} (unchanged)")
             return None, [], []
     
     # Validate source rule if validation is enabled
-    if validate and VALIDATION_AVAILABLE:
+    # Commands don't need the same validation as rules
+    if not is_command and validate and VALIDATION_AVAILABLE:
         validation_result = validate_cursor_rule(rule_file)
         if not validation_result.valid:
             error_msg = f"Validation failed for {rule_file.name}: {validation_result.issues[0]['message']}"
@@ -135,7 +140,7 @@ def _process_single_cursor_rule(rule_file: Path, project_path: Path, force: bool
         return None, errors, []
     
     # Convert to Claude Skill
-    skill = cursor_rule_to_claude_skill(rule, project_path)
+    skill = cursor_rule_to_claude_skill(rule, project_path, is_command=is_command)
     skill_dir = skill['directory']
     skill_file = skill_dir / 'SKILL.md'
     
@@ -176,12 +181,12 @@ def _process_single_cursor_rule(rule_file: Path, project_path: Path, force: bool
         
         # Update state if memory is available
         if state_manager and MEMORY_AVAILABLE:
-            state_manager.update_rule_state(rule['name'], rule_file, "cursor", "claude")
+            state_manager.update_state(rule['name'], rule_file, "cursor", "claude")
         
         return skill['name'], [], warnings
 
 
-def cursor_rule_to_claude_skill(rule: Dict, project_path: Path) -> Dict:
+def cursor_rule_to_claude_skill(rule: Dict, project_path: Path, is_command: bool = False) -> Dict:
     """Convert a Cursor rule to Claude Skill format."""
     # Normalize skill name
     skill_name = normalize_skill_name(rule['name'])
@@ -210,10 +215,11 @@ def cursor_rule_to_claude_skill(rule: Dict, project_path: Path) -> Dict:
     # Build SKILL.md content with proper YAML escaping
     # Escape quotes in description for YAML
     description_escaped = frontmatter['description'].replace('"', '\\"')
+    invocable_yaml = 'user-invocable: true\n' if is_command else ''
     
     skill_content = f"""---
 name: {frontmatter['name']}
-description: "{description_escaped}"
+{invocable_yaml}description: "{description_escaped}"
 ---
 
 {rule['body']}
@@ -227,9 +233,10 @@ description: "{description_escaped}"
 
 
 def claude_skill_to_cursor_rule(skill: Dict, project_path: Path) -> Dict:
-    """Convert a Claude Skill to Cursor rule format."""
+    """Convert a Claude Skill to Cursor rule or command format."""
     # Use skill name as rule name
     rule_name = skill['name']
+    is_command = skill['frontmatter'].get('user-invocable', False)
     
     # Build frontmatter
     frontmatter = {
@@ -251,25 +258,34 @@ def claude_skill_to_cursor_rule(skill: Dict, project_path: Path) -> Dict:
     always_apply = 'always active' in description.lower() or 'always apply' in description.lower()
     frontmatter['alwaysApply'] = always_apply
     
-    # Build RULE.md content (folder-based format)
-    globs_yaml = ''
-    if globs:
-        globs_yaml = yaml.dump({'globs': frontmatter['globs']}, default_flow_style=False).strip()
-        globs_yaml = f"{globs_yaml}\n" if globs_yaml else ''
-    
-    always_apply_yaml = f"alwaysApply: {str(always_apply).lower()}\n" if always_apply else ''
-    
-    rule_content = f"""---
+    # Build content
+    if is_command:
+        # Commands are just .md files in .cursor/commands/ without frontmatter (usually)
+        # or with simple description
+        content = f"# {rule_name}\n\n{skill['body']}"
+        target_path = project_path / '.cursor' / 'commands' / f"{rule_name}.md"
+    else:
+        # Rules use folder-based format with RULE.md
+        globs_yaml = ''
+        if globs:
+            globs_yaml = yaml.dump({'globs': frontmatter['globs']}, default_flow_style=False).strip()
+            globs_yaml = f"{globs_yaml}\n" if globs_yaml else ''
+        
+        always_apply_yaml = f"alwaysApply: {str(always_apply).lower()}\n" if always_apply else ''
+        
+        content = f"""---
 description: "{frontmatter['description']}"
 {globs_yaml}{always_apply_yaml}---
 
 {skill['body']}
 """
+        target_path = project_path / '.cursor' / 'rules' / rule_name / 'RULE.md'
     
     return {
         'name': rule_name,
-        'content': rule_content,
-        'path': project_path / '.cursor' / 'rules' / rule_name / 'RULE.md'
+        'content': content,
+        'path': target_path,
+        'is_command': is_command
     }
 
 
@@ -282,9 +298,11 @@ def convert_cursor_to_claude(project_path: Path, force: bool = False, dry_run: b
     from utils import fetch_documentation
     
     rules_dir = project_path / '.cursor' / 'rules'
-    if not rules_dir.exists():
-        print_warning(f"No `.cursor/rules` directory found in {project_path}")
-        return [], [], []
+    commands_dir = project_path / '.cursor' / 'commands'
+    
+    if not rules_dir.exists() and not commands_dir.exists():
+        print_warning(f"No `.cursor/rules` or `.cursor/commands` directory found in {project_path}")
+        return ConversionResult(converted=[], errors=[], warnings=[])
     
     # Initialize documentation cache
     doc_cache = DocumentationCache() if MEMORY_AVAILABLE else None
@@ -292,8 +310,12 @@ def convert_cursor_to_claude(project_path: Path, force: bool = False, dry_run: b
     # Fetch latest Claude Skills documentation
     fetch_documentation(CLAUDE_SKILLS_URL, 'claude_skills', doc_cache=doc_cache)
     
-    # Find all rule files
-    rule_files = _find_cursor_rule_files(rules_dir)
+    # Find all rule and command files
+    rule_files = []
+    if rules_dir.exists():
+        rule_files.extend(_find_cursor_rule_files(rules_dir))
+    if commands_dir.exists():
+        rule_files.extend([f for f in commands_dir.glob('*.md') if f.name != 'TEMPLATE.md'])
     
     if not rule_files:
         print_warning(f"No rule files found in {rules_dir}")
@@ -416,7 +438,7 @@ def _process_single_claude_skill(skill_dir: Path, project_path: Path, force: boo
         
         # Update state if memory is available
         if state_manager and MEMORY_AVAILABLE:
-            state_manager.update_rule_state(skill['name'], skill_file, "claude", "cursor")
+            state_manager.update_state(skill['name'], skill_file, "claude", "cursor")
         
         return rule['name'], [], warnings
 

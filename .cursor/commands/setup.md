@@ -95,11 +95,11 @@ validation:
 
 ## Examples
 
-- `/setup-agent` - Run full automated setup
+- `/setup` - Run full automated setup
 
 ## Next Steps
 
-After running `/setup-agent`:
+After running `/setup`:
 
 1. **Migrate your first project:**
    ```

@@ -7,11 +7,16 @@ A production-ready bidirectional conversion tool for migrating between **Cursor 
 
 ## Installation
 
-### Option 1: Install via PyPI (Recommended)
+### Option 1: Install via GitHub Packages (Recommended)
+
+To install from GitHub Packages, you'll need to configure your environment to use the GitHub registry.
 
 ```bash
-pip install rule-migration-agent
+# Configure pip to use GitHub Packages (replace OWNER with patrikmichi)
+pip install rule-migration-agent --index-url https://pypi.pkg.github.com/OWNER/
 ```
+
+Or, for easier global use, add the registry to your `~/.pip/pip.conf` or equivalent.
 
 After installation, use the command:
 ```bash
@@ -62,6 +67,8 @@ python3 install_agent.py
 - ✅ **Conflict Resolution** - Shows diffs and handles conflicts gracefully
 - ✅ **History & Rollback** - Maintains conversion history with rollback support
 - ✅ **AGENTS.md Generation** - Auto-generates documentation when both formats exist
+- ✅ **Persistent Memory** - Synchronizes project context (`brief.md`, `decisions.md`) across platforms
+- ✅ **Legacy Modernization** - Automatically converts old `.claude/commands/` to latest specs
 - ✅ **Batch Processing** - Process multiple projects at once
 
 ## Table of Contents
@@ -410,6 +417,7 @@ validation:
 The agent tracks:
 - **State changes** - Only converts files that have changed
 - **Conversion history** - Full audit trail of all operations
+- **Memory Syncing** - Automatically keeps project context files in sync across platforms
 - **Preferences** - Remembers your last used options
 - **Global statistics** - Usage metrics across all projects
 
@@ -521,7 +529,8 @@ rule-migration-agent/
 │   └── skills/
 │       └── rule-migration.md    # Skill for rule/skill files
 ├── package.json                 # Package metadata
-├── setup.py                     # Setup script
+├── pyproject.toml               # PyPI build (build: python -m build)
+├── install_agent.py             # Agent setup when cloning from GitHub
 ├── migrate.py                   # Main entry point
 ├── converters.py           # Conversion logic
 ├── parsers.py              # File parsing

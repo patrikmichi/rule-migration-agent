@@ -1,6 +1,13 @@
 ---
 name: rule-migration-agent
-description: "Instructions for the rule-migration-agent that converts between Cursor rules and Claude Skills. Use when editing files matching `agents/rule-migration-agent/**/*`, `**/.cursor/rules/**/*`, `**/.claude/skills/**/*`."
+description: Convert between Cursor rules and Claude Skills.
+user-invocable: false
+allowed-tools:
+  - Read
+  - Write
+  - Glob
+  - Task
+  - Bash
 ---
 
 # Rule Migration Agent

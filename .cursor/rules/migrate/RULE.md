@@ -1,3 +1,7 @@
+---
+description: "Convert between Cursor rules and Claude Skills."
+---
+
 # Migrate Rules and Skills
 
 Convert between Cursor rules (`.cursor/rules`) and Claude Skills (`.claude/skills`).

@@ -1,6 +1,5 @@
-#!/usr/bin/env python3
 """
-Setup script for rule-migration-agent PyPI package.
+Setup script for rule-migration-agent GitHub Packages package.
 """
 
 from setuptools import setup, find_packages

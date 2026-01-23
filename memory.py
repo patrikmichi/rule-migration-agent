@@ -44,6 +44,7 @@ class MigrationStateManager:
             "last_updated": None,
             "cursor_rules": {},
             "claude_skills": {},
+            "project_context": {},
             "sync_status": {
                 "last_sync": None,
                 "rules_count": 0,
@@ -69,49 +70,62 @@ class MigrationStateManager:
         except Exception:
             return ""
     
-    def has_changed(self, file_path: Path, rule_type: str = "cursor") -> bool:
+    def has_changed(self, file_path: Path, track_type: str = "cursor") -> bool:
         """Check if file has changed since last state."""
-        if rule_type == "cursor":
-            rules = self.state.get("cursor_rules", {})
+        if track_type == "cursor":
+            items = self.state.get("cursor_rules", {})
+        elif track_type == "claude":
+            items = self.state.get("claude_skills", {})
         else:
-            rules = self.state.get("claude_skills", {})
+            items = self.state.get("project_context", {})
         
-        rule_name = file_path.parent.name if file_path.name == "RULE.md" else file_path.stem
+        # Determine tracking name
+        if track_type == "context":
+            # For context files, use the relative path as key
+            try:
+                item_name = str(file_path.relative_to(self.project_path))
+            except ValueError:
+                item_name = file_path.name
+        else:
+            item_name = file_path.parent.name if file_path.name == "RULE.md" else file_path.stem
+            
         current_hash = self.get_file_hash(file_path)
         
-        if rule_name in rules:
-            stored_hash = rules[rule_name].get("hash", "")
+        if item_name in items:
+            stored_hash = items[item_name].get("hash", "")
             return current_hash != stored_hash
         
         return True  # New file, consider it changed
     
-    def update_rule_state(self, rule_name: str, rule_path: Path, rule_type: str = "cursor", 
-                         converted_to: Optional[str] = None) -> None:
-        """Update state for a rule."""
-        if rule_type == "cursor":
-            rules = self.state.setdefault("cursor_rules", {})
+    def update_state(self, item_name: str, item_path: Path, track_type: str = "cursor", 
+                    converted_to: Optional[str] = None) -> None:
+        """Update state for an item (rule, skill, or context file)."""
+        if track_type == "cursor":
+            items = self.state.setdefault("cursor_rules", {})
+        elif track_type == "claude":
+            items = self.state.setdefault("claude_skills", {})
         else:
-            rules = self.state.setdefault("claude_skills", {})
+            items = self.state.setdefault("project_context", {})
         
-        file_hash = self.get_file_hash(rule_path)
-        mtime = datetime.fromtimestamp(rule_path.stat().st_mtime, tz=timezone.utc).isoformat()
+        file_hash = self.get_file_hash(item_path)
+        mtime = datetime.fromtimestamp(item_path.stat().st_mtime, tz=timezone.utc).isoformat()
         
-        rule_state = {
-            "path": str(rule_path.relative_to(self.project_path)),
+        item_state = {
+            "path": str(item_path.relative_to(self.project_path)),
             "hash": file_hash,
             "last_modified": mtime,
-            "converted_to_claude": converted_to == "claude" if rule_type == "cursor" else None,
-            "converted_to_cursor": converted_to == "cursor" if rule_type == "claude" else None,
+            "converted_to_claude": converted_to == "claude" if track_type == "cursor" else None,
+            "converted_to_cursor": converted_to == "cursor" if track_type == "claude" else None,
             "conversion_date": datetime.now(timezone.utc).isoformat() if converted_to else None
         }
         
         if converted_to:
-            if rule_type == "cursor":
-                rule_state["claude_skill_name"] = converted_to
-            else:
-                rule_state["cursor_rule_name"] = converted_to
+            if track_type == "cursor":
+                item_state["claude_skill_name"] = converted_to
+            elif track_type == "claude":
+                item_state["cursor_rule_name"] = converted_to
         
-        rules[rule_name] = rule_state
+        items[item_name] = item_state
         self.save()
     
     def get_sync_status(self) -> Dict:

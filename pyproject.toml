@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rule-migration-agent"
-version = "1.0.0"
+version = "1.1.0"
 description = "Bidirectional conversion tool for migrating between Cursor rules and Claude Skills"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -64,10 +64,3 @@ py-modules = [
     "memory_commands",
     "config",
 ]
-
-[tool.setuptools.package-data]
-"*" = ["*.md", "*.txt", "*.yaml", "*.yml"]
-
-# Exclude install_agent.py from package
-[tool.setuptools.exclude-package-data]
-"*" = ["install_agent.py"]

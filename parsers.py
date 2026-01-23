@@ -41,6 +41,14 @@ def parse_cursor_rule(file_path: Path) -> Optional[Dict]:
                     'body': body,
                     'path': file_path
                 }
+        
+        # If no frontmatter, treat whole file as body (common for commands)
+        return {
+            'name': file_path.stem,
+            'frontmatter': {},
+            'body': content.strip(),
+            'path': file_path
+        }
     except Exception as e:
         # Import here to avoid circular dependency
         from utils import ParseError

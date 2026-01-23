@@ -97,6 +97,12 @@ python3 migrate.py /path/to/your/project --both
 - Review error messages with `--verbose` flag
 - Use `--dry-run` to preview changes safely
 
+## New in v1.1.0
+
+- 🧠 **Persistent Memory**: Shared context across platforms via `brief.md` and `decisions.md`.
+- 🔄 **Unified Commands**: All slash commands are now skill-based for better performance.
+- 🧹 **Legacy Support**: Automatic modernization of old Claude commands.
+
 ---
 
 **That's it! You're ready to migrate rules and skills.** 🚀

@@ -44,7 +44,7 @@ except ImportError:
     class MigrationStateManager:
         def __init__(self, *args, **kwargs): pass
         def has_changed(self, *args, **kwargs): return True
-        def update_rule_state(self, *args, **kwargs): pass
+        def update_state(self, *args, **kwargs): pass
         def save(self): pass
     class ConversionHistory:
         def __init__(self, *args, **kwargs): pass
@@ -313,22 +313,89 @@ def process_project(project_path: Path, args) -> Dict:
         all_errors.extend(result['errors'])
         all_warnings.extend(result['warnings'])
     
-    # Sync commands if both folders exist
+    # Sync memory if both folders exist
     if has_cursor and has_claude:
+        cursor_memory_dir = project_path / '.cursor' / 'memory'
+        claude_memory_dir = project_path / '.claude' / 'memory'
+        
+        if cursor_memory_dir.exists() and claude_memory_dir.exists():
+            print_info("\n🧠 Syncing project memory...")
+            # Sync core memory files (brief, decisions)
+            for filename in ['brief.md', 'decisions.md']:
+                src_cursor = cursor_memory_dir / filename
+                src_claude = claude_memory_dir / filename
+                
+                # Use state manager to check which one is newer/changed
+                if state_manager and MEMORY_AVAILABLE:
+                    cursor_changed = state_manager.has_changed(src_cursor, "context")
+                    claude_changed = state_manager.has_changed(src_claude, "context")
+                    
+                    if cursor_changed and not claude_changed:
+                        if not args.dry_run:
+                            shutil.copy2(src_cursor, src_claude)
+                            state_manager.update_state(f".cursor/memory/{filename}", src_cursor, "context")
+                            state_manager.update_state(f".claude/memory/{filename}", src_claude, "context")
+                        print_success(f"Synced: Cursor/{filename} → Claude/{filename}")
+                    elif claude_changed and not cursor_changed:
+                        if not args.dry_run:
+                            shutil.copy2(src_claude, src_cursor)
+                            state_manager.update_state(f".cursor/memory/{filename}", src_cursor, "context")
+                            state_manager.update_state(f".claude/memory/{filename}", src_claude, "context")
+                        print_success(f"Synced: Claude/{filename} → Cursor/{filename}")
+        
+        # Sync and transform commands (Cursor .md -> Claude Skill folder)
         cursor_commands_dir = project_path / '.cursor' / 'commands'
-        claude_commands_dir = project_path / '.claude' / 'commands'
-        
         if cursor_commands_dir.exists():
-            if args.dry_run:
-                print_info("\n🔍 [DRY RUN] Would sync commands to .claude/commands/")
-            else:
-                claude_commands_dir.mkdir(parents=True, exist_ok=True)
-                # Copy commands from .cursor/commands to .claude/commands
-                for cmd_file in cursor_commands_dir.glob('*.md'):
-                    if cmd_file.name != 'TEMPLATE.md' or args.force:
-                        shutil.copy2(cmd_file, claude_commands_dir / cmd_file.name)
-                print_success("\nSynced commands to .claude/commands/")
-        
+            print_info("\n🔄 Migrating commands to Claude skills...")
+            for cmd_file in cursor_commands_dir.glob('*.md'):
+                if cmd_file.name == 'TEMPLATE.md': continue
+                
+                skill_name = cmd_file.stem
+                # Proper migration using converter logic
+                from converters import cursor_rule_to_claude_skill
+                # Dummy rule dict for converter
+                rule_dict = {
+                    'name': skill_name,
+                    'frontmatter': {'description': f"Command: {skill_name}"},
+                    'body': cmd_file.read_text(encoding='utf-8')
+                }
+                skill = cursor_rule_to_claude_skill(rule_dict, project_path)
+                # Inject user-invocable: true for commands
+                skill['content'] = skill['content'].replace('description:', 'user-invocable: true\ndescription:')
+                
+                if not args.dry_run:
+                    skill['directory'].mkdir(parents=True, exist_ok=True)
+                    (skill['directory'] / 'SKILL.md').write_text(skill['content'], encoding='utf-8')
+                print_success(f"Migrated command: {cmd_file.name} → .claude/skills/{skill_name}/")
+
+        # Support legacy Claude commands migration
+        claude_commands_dir = project_path / '.claude' / 'commands'
+        if claude_commands_dir.exists():
+            legacy_cmds = list(claude_commands_dir.glob('*.md'))
+            if legacy_cmds:
+                print_info(f"\n🧹 Found {len(legacy_cmds)} legacy Claude commands. Migrating to skills...")
+                for cmd_file in legacy_cmds:
+                    skill_name = cmd_file.stem
+                    from converters import cursor_rule_to_claude_skill
+                    rule_dict = {
+                        'name': skill_name,
+                        'frontmatter': {'description': f"Command: {skill_name}"},
+                        'body': cmd_file.read_text(encoding='utf-8')
+                    }
+                    skill = cursor_rule_to_claude_skill(rule_dict, project_path, is_command=True)
+                    
+                    if not args.dry_run:
+                        skill['directory'].mkdir(parents=True, exist_ok=True)
+                        (skill['directory'] / 'SKILL.md').write_text(skill['content'], encoding='utf-8')
+                        # Remove legacy file after migration (if not dry run)
+                        cmd_file.unlink()
+                    print_success(f"Migrated legacy command: {cmd_file.name} → .claude/skills/{skill_name}/")
+                
+                # Cleanup empty legacy commands dir
+                if not args.dry_run and not any(claude_commands_dir.iterdir()):
+                    claude_commands_dir.rmdir()
+                    print_info("Removed empty legacy .claude/commands/ directory")
+
         # Generate AGENTS.md if both folders exist
         agents_md_path = project_path / 'AGENTS.md'
         if not agents_md_path.exists() or args.force:

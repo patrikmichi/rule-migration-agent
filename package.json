@@ -1,6 +1,6 @@
 {
   "name": "rule-migration-agent",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Bidirectional conversion tool for migrating between Cursor rules (.cursor/rules) and Claude Skills (.claude/skills)",
   "main": "instructions.md",
   "keywords": [
@@ -29,7 +29,7 @@
     "memory.py",
     "memory_commands.py",
     "config.py",
-    "setup.py",
+    "pyproject.toml",
     "requirements.txt",
     "QUICKSTART.md",
     "CONTRIBUTING.md",

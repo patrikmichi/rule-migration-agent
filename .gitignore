@@ -1,9 +1,15 @@
-# Migration state files (project-specific, can be gitignored)
+# Migration state files (local-only, should be gitignored)
 .migration-state.json
 .migration-history.json
 .migration-preferences.json
 .migration-validation.json
 .migration-conflicts.json
+
+# Memory transient session summaries
+.cursor/memory/summaries/
+.claude/memory/summaries/
+.cursor/memory/internal/
+.claude/memory/internal/
 
 # Backup files created by migration agent
 *.backup.*
@@ -28,7 +34,7 @@ venv/
 *.swo
 *~
 
-# PyPI build artifacts
+# GitHub Packages build artifacts
 build/
 dist/
 *.egg-info/

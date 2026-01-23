@@ -8,6 +8,7 @@ This plugin extends Claude Code with:
 - **Commands**: `/migrate` and `/setup` for rule migration workflows
 - **Instructions**: Detailed guidance on converting between Cursor rules and Claude Skills formats
 - **Python Tools**: Migration scripts that handle bidirectional conversion
+- **Persistent Memory**: Shared context tracking across platforms (`brief.md`, `decisions.md`)
 
 ## Plugin Commands
 
@@ -15,7 +16,7 @@ This plugin extends Claude Code with:
 - `/setup` - Install and configure the agent (Python, dependencies, configuration)
 
 **Important**: This plugin provides commands and skills (Markdown files). The Python tools are installed separately via the `/setup` command, which:
-1. Tries to install via pip (if published to PyPI)
+1. Tries to install via pip (if published to GitHub Packages)
 2. Falls back to cloning from GitHub: https://github.com/patrikmichi/rule-migration-agent
 3. Runs the setup script to install dependencies
 
@@ -30,9 +31,11 @@ The Rule Migration Agent handles bidirectional conversion between Cursor rules (
 1. **Fetch latest documentation** from official sources before any conversion
 2. **Convert Cursor rules → Claude Skills** (`.cursor/rules/*.mdc` → `.claude/skills/*/SKILL.md`)
 3. **Convert Claude Skills → Cursor rules** (`.claude/skills/*/SKILL.md` → `.cursor/rules/*.mdc`)
-4. **Generate AGENTS.md** when both `.cursor/rules` and `.claude/skills` folders exist
-5. **Validate conversions** to ensure compliance with latest format specifications
-6. **Handle conflicts** and preserve existing content when appropriate
+4. **Maintain Persistent Memory** Sync `brief.md` and `decisions.md` between platforms
+5. **Generate AGENTS.md** when both `.cursor/rules` and `.claude/skills` folders exist
+6. **Validate conversions** to ensure compliance with latest format specifications
+7. **Handle legacy migration** Transform `.claude/commands/` to skills with `user-invocable: true`
+8. **Handle conflicts** and preserve existing content when appropriate
 
 ## Documentation Sources
 
@@ -103,6 +106,21 @@ The Rule Migration Agent handles bidirectional conversion between Cursor rules (
    - YAML frontmatter: `description:`, `globs:` (if applicable), `alwaysApply:`
    - Markdown body with instructions and examples
 7. Validate: Check frontmatter format, valid YAML
+
+## Unified Memory System
+
+The agent maintains shared state across both platforms to ensure context continuity.
+
+### Memory Structure
+- **`.cursor/memory/`** & **`.claude/memory/`**: Mirror directories for project state
+- **`brief.md`**: Project-level goals and high-level responsibilities (Synced)
+- **`decisions.md`**: Log of architectural and technical decisions (Synced)
+- **`summaries/current.md`**: Brief factual summaries of recent work (Local only)
+
+### Sync Logic
+- When running `/migrate` or `migrate.py`, the agent detects changes in `brief.md` or `decisions.md`.
+- Changes from the most recently modified platform are synced to the other.
+- The `MigrationStateManager` tracks file hashes to ensure accurate synchronization.
 
 ## AGENTS.md Generation
 
