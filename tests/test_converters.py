@@ -90,11 +90,12 @@ class TestClaudeToCursorConversion(unittest.TestCase):
             project_path = Path(tmpdir)
             skills_dir = project_path / '.claude' / 'skills'
             skills_dir.mkdir(parents=True)
-            
+
             skill_dir = skills_dir / "test-skill"
             skill_dir.mkdir()
             skill_file = skill_dir / "SKILL.md"
             skill_file.write_text("""---
+name: test-skill
 description: Test skill
 ---
 Test content.
@@ -104,6 +105,73 @@ Test content.
             self.assertIsInstance(result, dict)
             # Should have converted one skill
             self.assertEqual(len(result['converted']), 1)
+
+
+class TestStaleStateReconversion(unittest.TestCase):
+    """Test that rules are re-converted when state says converted but target is missing."""
+
+    def test_cursor_rule_reconverted_when_target_missing(self):
+        """State marks rule as converted but skill file doesn't exist — should reconvert."""
+        from memory import MigrationStateManager
+
+        with TemporaryDirectory() as tmpdir:
+            project_path = Path(tmpdir)
+            rules_dir = project_path / '.cursor' / 'rules'
+            rules_dir.mkdir(parents=True)
+
+            # Create a cursor rule
+            rule_file = rules_dir / "my-rule.mdc"
+            rule_content = "---\ndescription: My rule\n---\nRule body.\n"
+            rule_file.write_text(rule_content)
+
+            state_manager = MigrationStateManager(project_path)
+
+            # First run: convert with state tracking
+            result = convert_cursor_to_claude(
+                project_path, force=True, state_manager=state_manager)
+            self.assertEqual(len(result['converted']), 1)
+
+            # Verify skill file was created
+            skill_file = project_path / '.claude' / 'skills' / 'my-rule' / 'SKILL.md'
+            self.assertTrue(skill_file.exists())
+
+            # Simulate the bug: delete the skill file but keep the state
+            skill_file.unlink()
+            skill_file.parent.rmdir()
+            self.assertFalse(skill_file.exists())
+
+            # Second run: should reconvert because target is missing
+            result2 = convert_cursor_to_claude(
+                project_path, force=True, state_manager=state_manager)
+            self.assertEqual(len(result2['converted']), 1,
+                "Rule should be reconverted when target skill file is missing")
+            self.assertTrue(skill_file.exists())
+
+    def test_cursor_rule_skipped_when_target_exists(self):
+        """State marks rule as converted and skill file exists — should skip."""
+        from memory import MigrationStateManager
+
+        with TemporaryDirectory() as tmpdir:
+            project_path = Path(tmpdir)
+            rules_dir = project_path / '.cursor' / 'rules'
+            rules_dir.mkdir(parents=True)
+
+            rule_file = rules_dir / "my-rule.mdc"
+            rule_content = "---\ndescription: My rule\n---\nRule body.\n"
+            rule_file.write_text(rule_content)
+
+            state_manager = MigrationStateManager(project_path)
+
+            # First run with state tracking
+            result = convert_cursor_to_claude(
+                project_path, force=True, state_manager=state_manager)
+            self.assertEqual(len(result['converted']), 1)
+
+            # Second run: same content, target exists — should skip
+            result2 = convert_cursor_to_claude(
+                project_path, force=True, state_manager=state_manager)
+            self.assertEqual(len(result2['converted']), 0,
+                "Unchanged rule with existing target should be skipped")
 
 
 if __name__ == '__main__':

@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 import json
 
 try:
-    from memory import MigrationStateManager, ConversionHistory, PreferencesManager
+    from memory import MigrationStateManager, ConversionHistory, PreferencesManager, STATE_DIR
     MEMORY_AVAILABLE = True
 except ImportError:
     MEMORY_AVAILABLE = False
@@ -323,7 +323,7 @@ def clear_history(project_path: Path, args):
         print_error("Memory system not available. Install required dependencies.")
         return
     
-    history_file = project_path / '.migration-history.json'
+    history_file = project_path / STATE_DIR / 'history.json'
     if history_file.exists():
         history_file.unlink()
         print_success("Cleared conversion history")

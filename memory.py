@@ -13,13 +13,16 @@ from datetime import datetime, timezone, timedelta
 import os
 import shutil
 
+# Central directory for all migration state files
+STATE_DIR = '.rule-migration'
+
 
 class MigrationStateManager:
     """Manages project state memory for migration operations."""
     
     def __init__(self, project_path: Path):
         self.project_path = project_path
-        self.state_file = project_path / '.migration-state.json'
+        self.state_file = project_path / STATE_DIR / 'state.json'
         self.state = self._load_state()
     
     def _load_state(self) -> Dict:
@@ -87,7 +90,8 @@ class MigrationStateManager:
             except ValueError:
                 item_name = file_path.name
         else:
-            item_name = file_path.parent.name if file_path.name == "RULE.md" else file_path.stem
+            # For RULE.md and SKILL.md, use parent directory name as key
+            item_name = file_path.parent.name if file_path.name in ("RULE.md", "SKILL.md") else file_path.stem
             
         current_hash = self.get_file_hash(file_path)
         
@@ -97,19 +101,29 @@ class MigrationStateManager:
         
         return True  # New file, consider it changed
     
-    def update_state(self, item_name: str, item_path: Path, track_type: str = "cursor", 
-                    converted_to: Optional[str] = None) -> None:
-        """Update state for an item (rule, skill, or context file)."""
+    def update_state(self, item_name: str, item_path: Path, track_type: str = "cursor",
+                    converted_to: Optional[str] = None,
+                    target_name: Optional[str] = None) -> None:
+        """Update state for an item (rule, skill, or context file).
+
+        Args:
+            item_name: Name of the source item.
+            item_path: Path to the source file.
+            track_type: "cursor", "claude", or "context".
+            converted_to: Direction of conversion ("claude" or "cursor").
+            target_name: Name of the converted target (skill name or rule name).
+                         Defaults to item_name if not provided.
+        """
         if track_type == "cursor":
             items = self.state.setdefault("cursor_rules", {})
         elif track_type == "claude":
             items = self.state.setdefault("claude_skills", {})
         else:
             items = self.state.setdefault("project_context", {})
-        
+
         file_hash = self.get_file_hash(item_path)
         mtime = datetime.fromtimestamp(item_path.stat().st_mtime, tz=timezone.utc).isoformat()
-        
+
         item_state = {
             "path": str(item_path.relative_to(self.project_path)),
             "hash": file_hash,
@@ -118,16 +132,60 @@ class MigrationStateManager:
             "converted_to_cursor": converted_to == "cursor" if track_type == "claude" else None,
             "conversion_date": datetime.now(timezone.utc).isoformat() if converted_to else None
         }
-        
+
+        resolved_target = target_name or item_name
         if converted_to:
             if track_type == "cursor":
-                item_state["claude_skill_name"] = converted_to
+                item_state["claude_skill_name"] = resolved_target
             elif track_type == "claude":
-                item_state["cursor_rule_name"] = converted_to
-        
+                item_state["cursor_rule_name"] = resolved_target
+
         items[item_name] = item_state
         self.save()
     
+    def converted_target_exists(self, file_path: Path, track_type: str = "cursor") -> bool:
+        """Check if the converted target file from a previous run actually exists on disk.
+
+        This prevents skipping files whose state says 'converted' but the target
+        was never actually created (e.g. from a failed or different previous run).
+        """
+        if track_type == "cursor":
+            items = self.state.get("cursor_rules", {})
+        elif track_type == "claude":
+            items = self.state.get("claude_skills", {})
+        else:
+            return True  # No conversion tracking for context files
+
+        # Determine item name (same logic as has_changed)
+        if track_type == "context":
+            try:
+                item_name = str(file_path.relative_to(self.project_path))
+            except ValueError:
+                item_name = file_path.name
+        else:
+            # For RULE.md and SKILL.md, use parent directory name as key
+            item_name = file_path.parent.name if file_path.name in ("RULE.md", "SKILL.md") else file_path.stem
+
+        item = items.get(item_name)
+        if not item:
+            return True  # No state entry, nothing to check
+
+        # Check if state says it was converted and verify target exists
+        if track_type == "cursor" and item.get("converted_to_claude"):
+            skill_name = item.get("claude_skill_name")
+            if skill_name:
+                target = self.project_path / '.claude' / 'skills' / skill_name / 'SKILL.md'
+                return target.exists()
+        elif track_type == "claude" and item.get("converted_to_cursor"):
+            rule_name = item.get("cursor_rule_name")
+            if rule_name:
+                # Could be a rule or command - check both locations
+                rule_target = self.project_path / '.cursor' / 'rules' / rule_name / 'RULE.md'
+                cmd_target = self.project_path / '.cursor' / 'commands' / f"{rule_name}.md"
+                return rule_target.exists() or cmd_target.exists()
+
+        return True  # Not marked as converted, nothing to verify
+
     def get_sync_status(self) -> Dict:
         """Get current sync status."""
         return self.state.get("sync_status", {})
@@ -149,7 +207,7 @@ class ConversionHistory:
     
     def __init__(self, project_path: Path):
         self.project_path = project_path
-        self.history_file = project_path / '.migration-history.json'
+        self.history_file = project_path / STATE_DIR / 'history.json'
         self.history = self._load_history()
     
     def _load_history(self) -> Dict:
@@ -216,7 +274,7 @@ class PreferencesManager:
     
     def __init__(self, project_path: Path):
         self.project_path = project_path
-        self.prefs_file = project_path / '.migration-preferences.json'
+        self.prefs_file = project_path / STATE_DIR / 'preferences.json'
         self.preferences = self._load_preferences()
     
     def _load_preferences(self) -> Dict:

@@ -243,7 +243,9 @@ def create_config_template():
     print_step("Checking configuration...")
     
     script_dir = Path(__file__).parent
-    config_file = script_dir / '.migration-config.yaml'
+    config_dir = script_dir / '.rule-migration'
+    config_dir.mkdir(parents=True, exist_ok=True)
+    config_file = config_dir / 'config.yaml'
     
     if config_file.exists():
         print_info("Configuration file already exists")

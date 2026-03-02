@@ -44,6 +44,7 @@ Test content.
             skill_dir.mkdir()
             skill_file = skill_dir / "SKILL.md"
             skill_file.write_text("""---
+name: test-skill
 description: Test skill
 ---
 Test content.

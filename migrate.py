@@ -92,7 +92,7 @@ Examples:
     parser.add_argument('--verbose', '-v', action='store_true', help='Verbose output with detailed errors')
     parser.add_argument('--json', action='store_true', help='Output results as JSON')
     parser.add_argument('--batch', action='store_true', help='Process multiple projects (when multiple paths provided)')
-    parser.add_argument('--config', type=str, help='Path to custom config file (default: .migration-config.yaml)')
+    parser.add_argument('--config', type=str, help='Path to custom config file (default: .rule-migration/config.yaml)')
     parser.add_argument('--no-memory', action='store_true', help='Disable context memory system')
     parser.add_argument('--check-sync', action='store_true', help='Check sync status without converting')
     parser.add_argument('--history', action='store_true', help='Show conversion history')

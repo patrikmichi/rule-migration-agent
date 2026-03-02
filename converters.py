@@ -105,12 +105,16 @@ def _process_single_cursor_rule(rule_file: Path, project_path: Path, force: bool
     is_command = ".cursor/commands" in str(rule_file)
     
     # Check if file has changed (skip unchanged if enabled)
+    # Commands and rules both track under "cursor" in state
     if skip_unchanged and state_manager and MEMORY_AVAILABLE:
-        track_type = "cursor_command" if is_command else "cursor"
-        if not state_manager.has_changed(rule_file, track_type):
-            if verbose:
-                print_dim(f"⏭️  Skipping {rule_file.name} (unchanged)")
-            return None, [], []
+        if not state_manager.has_changed(rule_file, "cursor"):
+            # Also verify the converted target actually exists on disk
+            if state_manager.converted_target_exists(rule_file, "cursor"):
+                if verbose:
+                    print_dim(f"⏭️  Skipping {rule_file.name} (unchanged)")
+                return None, [], []
+            elif verbose:
+                print_dim(f"🔄 Re-converting {rule_file.name} (target file missing)")
     
     # Validate source rule if validation is enabled
     # Commands don't need the same validation as rules
@@ -181,7 +185,7 @@ def _process_single_cursor_rule(rule_file: Path, project_path: Path, force: bool
         
         # Update state if memory is available
         if state_manager and MEMORY_AVAILABLE:
-            state_manager.update_state(rule['name'], rule_file, "cursor", "claude")
+            state_manager.update_state(rule['name'], rule_file, "cursor", "claude", target_name=skill['name'])
         
         return skill['name'], [], warnings
 
@@ -378,9 +382,13 @@ def _process_single_claude_skill(skill_dir: Path, project_path: Path, force: boo
     # Check if file has changed (skip unchanged if enabled)
     if skip_unchanged and state_manager and MEMORY_AVAILABLE:
         if not state_manager.has_changed(skill_file, "claude"):
-            if verbose:
-                print_dim(f"⏭️  Skipping {skill_dir.name} (unchanged)")
-            return None, [], []
+            # Also verify the converted target actually exists on disk
+            if state_manager.converted_target_exists(skill_file, "claude"):
+                if verbose:
+                    print_dim(f"⏭️  Skipping {skill_dir.name} (unchanged)")
+                return None, [], []
+            elif verbose:
+                print_dim(f"🔄 Re-converting {skill_dir.name} (target file missing)")
     
     # Validate source skill if validation is enabled
     if validate and VALIDATION_AVAILABLE:
@@ -450,7 +458,7 @@ def _process_single_claude_skill(skill_dir: Path, project_path: Path, force: boo
         
         # Update state if memory is available
         if state_manager and MEMORY_AVAILABLE:
-            state_manager.update_state(skill['name'], skill_file, "claude", "cursor")
+            state_manager.update_state(skill['name'], skill_file, "claude", "cursor", target_name=rule['name'])
         
         return rule['name'], [], warnings
 

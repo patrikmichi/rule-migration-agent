@@ -1,9 +1,5 @@
 # Migration state files (local-only, should be gitignored)
-.migration-state.json
-.migration-history.json
-.migration-preferences.json
-.migration-validation.json
-.migration-conflicts.json
+.rule-migration/
 
 # Memory transient session summaries
 .cursor/memory/summaries/

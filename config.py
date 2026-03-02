@@ -2,20 +2,22 @@
 """
 Configuration file support for rule-migration-agent
 
-Supports .migration-config.yaml for project-specific settings.
+Supports .rule-migration/config.yaml for project-specific settings.
 """
 
 import yaml
 from pathlib import Path
 from typing import Dict, Optional, List
 
+from memory import STATE_DIR
+
 
 class MigrationConfig:
-    """Manages migration configuration from .migration-config.yaml"""
-    
+    """Manages migration configuration from .rule-migration/config.yaml"""
+
     def __init__(self, project_path: Path):
         self.project_path = project_path
-        self.config_file = project_path / '.migration-config.yaml'
+        self.config_file = project_path / STATE_DIR / 'config.yaml'
         self.config = self._load_config()
     
     def _load_config(self) -> Dict:
