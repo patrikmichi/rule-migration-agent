@@ -29,13 +29,15 @@ The Rule Migration Agent handles bidirectional conversion between Cursor rules (
 ## Responsibilities
 
 1. **Fetch latest documentation** from official sources before any conversion
-2. **Convert Cursor rules → Claude Skills** (`.cursor/rules/*.mdc` → `.claude/skills/*/SKILL.md`)
-3. **Convert Claude Skills → Cursor rules** (`.claude/skills/*/SKILL.md` → `.cursor/rules/*.mdc`)
-4. **Maintain Persistent Memory** Sync `brief.md` and `decisions.md` between platforms
-5. **Generate AGENTS.md** when both `.cursor/rules` and `.claude/skills` folders exist
-6. **Validate conversions** to ensure compliance with latest format specifications
-7. **Handle legacy migration** Transform `.claude/commands/` to skills with `user-invocable: true`
-8. **Handle conflicts** and preserve existing content when appropriate
+2. **Convert Cursor rules → Claude Skills** (`.cursor/rules/*/RULE.md` → `.claude/skills/*/SKILL.md` with `user-invocable: false`)
+3. **Convert Cursor commands → Claude Skills** (`.cursor/commands/*.md` → `.claude/skills/*/SKILL.md`, user-invocable by default)
+4. **Convert Claude Skills → Cursor commands** (`.claude/skills/` user-invocable → `.cursor/commands/*.md`)
+5. **Convert Claude Skills → Cursor rules** (`.claude/skills/` with `user-invocable: false` → `.cursor/rules/*/RULE.md`)
+6. **Maintain Persistent Memory** Sync `brief.md` and `decisions.md` between platforms
+7. **Generate AGENTS.md** when both `.cursor/rules` and `.claude/skills` folders exist
+8. **Validate conversions** to ensure compliance with latest format specifications
+9. **Handle legacy migration** Transform `.claude/commands/` to skills with `user-invocable: true`
+10. **Handle conflicts** and preserve existing content when appropriate
 
 ## Documentation Sources
 
@@ -53,59 +55,40 @@ The Rule Migration Agent handles bidirectional conversion between Cursor rules (
 
 ## Conversion Workflows
 
-### Cursor Rules → Claude Skills
+### Cursor → Claude (commands and rules)
 
-**Input:** `.cursor/rules/*.mdc` or `.cursor/rules/*/RULE.md` files
+**Commands** (`.cursor/commands/*.md`) → **User-invocable skills** (`.claude/skills/<name>/SKILL.md`):
+- Flat markdown files become skill directories with SKILL.md
+- Default `user-invocable: true` (Claude's default, no explicit field needed)
+- Users invoke these with `/skill-name` in Claude Code
 
-**Output:** `.claude/skills/<skill-name>/SKILL.md` files
+**Rules** (`.cursor/rules/*/RULE.md`) → **Background skills** (`.claude/skills/<name>/SKILL.md`):
+- Rule folders map 1:1 to skill directories
+- Set `user-invocable: false` explicitly (Claude defaults to true)
+- Claude loads these automatically when relevant, not via `/` menu
 
-**Mapping:**
-- **Rule filename/folder name** → Skill directory name + `name:` in frontmatter (normalize to lowercase, hyphens)
-- **`description:` frontmatter** → `description:` in SKILL.md (enhance with trigger terms for Claude)
-- **`globs:` patterns** → Include in description: "Use when editing files matching `glob XYZ`"
-- **`alwaysApply: true`** → Include "always active" or broad triggers in description
-- **Rule body content** → Instructions section in SKILL.md (preserve structure, examples, references)
-- **`@filename` references** → Preserve or include content in Skill instructions
+**Metadata mapping:**
+- Rule/command name → `name:` (normalized: lowercase, hyphens)
+- `description:` → `description:` (enhanced with trigger terms)
+- `globs:` → Included in description: "Use when editing files matching..."
+- `alwaysApply: true` → "Always active" prepended to description
+- Body content → Skill instructions (preserve structure)
 
-**Process:**
-1. Fetch latest Claude Skills documentation
-2. Scan `.cursor/rules/` for `.mdc` files and rule folders
-3. Parse frontmatter (YAML) and body content
-4. Normalize skill name (lowercase, hyphens, no reserved words)
-5. Create `.claude/skills/<skill-name>/` directory
-6. Generate `SKILL.md` with:
-   - YAML frontmatter: `name:`, `description:` (required)
-   - Optional fields if applicable: `allowed-tools`, `model`, etc.
-   - Markdown body with instructions, examples, best practices
-7. Validate: Check name constraints, description length (<1024 chars), valid YAML
+### Claude → Cursor (skills to commands and rules)
 
-### Claude Skills → Cursor Rules
+**User-invocable skills** (`user-invocable: true` or not set) → **Commands** (`.cursor/commands/<name>.md`):
+- Skill becomes a flat markdown file in `.cursor/commands/`
+- No YAML frontmatter (Cursor command format)
 
-**Input:** `.claude/skills/*/SKILL.md` files
+**Non-user-invocable skills** (`user-invocable: false`) → **Rules** (`.cursor/rules/<name>/RULE.md`):
+- Skill becomes a folder-based rule with RULE.md
+- YAML frontmatter with `description:`, optional `globs:`, `alwaysApply:`
 
-**Output:** `.cursor/rules/*.mdc` files
-
-**Mapping:**
-- **Skill directory name** → Rule filename (`.mdc` extension)
-- **`name:` frontmatter** → Rule identifier
-- **`description:` frontmatter** → `description:` in rule frontmatter
-- **Description triggers/patterns** → Extract `globs:` patterns if file patterns mentioned
-- **Skill instructions** → Rule body content (preserve structure)
-- **Examples** → Include in rule body
-
-**Process:**
-1. Fetch latest Cursor Rules documentation
-2. Scan `.claude/skills/` for Skill directories
-3. Read `SKILL.md` from each directory
-4. Parse YAML frontmatter and instructions
-5. Extract metadata:
-   - `description:` → rule description
-   - Analyze description for file patterns → `globs:` array
-   - Determine `alwaysApply:` based on description (if mentions "always" or broad triggers)
-6. Generate `.mdc` file in `.cursor/rules/` with:
-   - YAML frontmatter: `description:`, `globs:` (if applicable), `alwaysApply:`
-   - Markdown body with instructions and examples
-7. Validate: Check frontmatter format, valid YAML
+**Metadata mapping:**
+- `name:` → Rule/command identifier
+- `description:` → `description:` (extract globs if file patterns mentioned)
+- "always active" in description → `alwaysApply: true`
+- Skill instructions → Rule/command body content
 
 ## Unified Memory System
 

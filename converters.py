@@ -215,12 +215,18 @@ def cursor_rule_to_claude_skill(rule: Dict, project_path: Path, is_command: bool
     # Build SKILL.md content with proper YAML escaping
     # Escape quotes in description for YAML
     description_escaped = frontmatter['description'].replace('"', '\\"')
-    invocable_yaml = 'user-invocable: true\n' if is_command else ''
-    
+
+    # Commands are user-invocable (default in Claude, but explicit for clarity)
+    # Rules are NOT user-invocable (must be explicit since Claude defaults to true)
+    if is_command:
+        invocable_yaml = ''  # default is true, no need to specify
+    else:
+        invocable_yaml = 'user-invocable: false\n'
+
     skill_content = f"""---
 name: {frontmatter['name']}
-{invocable_yaml}description: "{description_escaped}"
----
+description: "{description_escaped}"
+{invocable_yaml}---
 
 {rule['body']}
 """
@@ -233,10 +239,16 @@ name: {frontmatter['name']}
 
 
 def claude_skill_to_cursor_rule(skill: Dict, project_path: Path) -> Dict:
-    """Convert a Claude Skill to Cursor rule or command format."""
+    """Convert a Claude Skill to Cursor rule or command format.
+
+    Skills with user-invocable: false become .cursor/rules/.
+    All other skills (user-invocable: true or not set) become .cursor/commands/.
+    Claude's default for user-invocable is true, so absence means user-invocable.
+    """
     # Use skill name as rule name
     rule_name = skill['name']
-    is_command = skill['frontmatter'].get('user-invocable', False)
+    # Claude defaults user-invocable to true, so only explicit false means rule
+    is_command = skill['frontmatter'].get('user-invocable', True)
     
     # Build frontmatter
     frontmatter = {
@@ -473,11 +485,13 @@ def convert_claude_to_cursor(project_path: Path, force: bool = False, dry_run: b
     errors = []
     warnings = []
     rules_dir = project_path / '.cursor' / 'rules'
+    commands_dir = project_path / '.cursor' / 'commands'
     rules_dir.mkdir(parents=True, exist_ok=True)
-    
+    commands_dir.mkdir(parents=True, exist_ok=True)
+
     # Use progress bar if available
     iterator = tqdm(skill_dirs, desc="Converting skills", unit="skill") if TQDM_AVAILABLE else skill_dirs
-    
+
     # Sequential processing (parallel can be added later with proper state management)
     for skill_dir in iterator:
         try:

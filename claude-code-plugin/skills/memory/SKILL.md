@@ -10,9 +10,9 @@ This skill ensures that Claude maintains a persistent memory of the project stat
 
 ## Memory Files
 
-- **[.claude/memory/brief.md](file:///Users/patrikmichalicka/Desktop/projects/agents/rule-migration-agent/.claude/memory/brief.md)**: High-level project goal, purpose, and key responsibilities.
-- **[.claude/memory/decisions.md](file:///Users/patrikmichalicka/Desktop/projects/agents/rule-migration-agent/.claude/memory/decisions.md)**: Log of locked-in technical and architectural decisions.
-- **[.claude/memory/summaries/current.md](file:///Users/patrikmichalicka/Desktop/projects/agents/rule-migration-agent/.claude/memory/summaries/current.md)**: Concise summaries of recent tasks.
+- `.claude/memory/brief.md` - High-level project goal, purpose, and key responsibilities
+- `.claude/memory/decisions.md` - Log of locked-in technical and architectural decisions
+- `.claude/memory/summaries/current.md` - Concise summaries of recent tasks
 
 ## Usage Guidelines
 

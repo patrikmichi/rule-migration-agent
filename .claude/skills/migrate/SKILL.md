@@ -1,128 +1,77 @@
 ---
 name: migrate
-user-invocable: true
-description: "Command: migrate"
+description: Convert between Cursor rules and Claude Skills. Auto-detects direction, fetches latest docs, validates output, and handles conflicts.
+disable-model-invocation: true
+argument-hint: "[project-path] [--cursor-to-claude | --claude-to-cursor | --both] [--dry-run] [--auto-backup]"
+allowed-tools:
+  - Bash
+  - Read
+  - Write
+  - Edit
+  - Glob
+  - Grep
+  - WebFetch
+  - Task
 ---
 
 # Migrate Rules and Skills
 
 Convert between Cursor rules (`.cursor/rules`) and Claude Skills (`.claude/skills`).
 
-## Usage
+## Instructions
 
-```
-/migrate [project-path] [options]
-```
+When the user runs `/migrate $ARGUMENTS`:
 
-## What it does
-
-- ✅ **Auto-detects direction** - Converts based on what exists in the project
-- ✅ **Fetches latest docs** - Gets current format specifications
-- ✅ **Validates output** - Ensures compliance with format requirements
-- ✅ **Handles conflicts** - Shows diffs and manages file conflicts
-- ✅ **Generates AGENTS.md** - Creates documentation when both formats exist
-
-## Arguments
-
-- `[project-path]` - Path to project/repo (defaults to current directory if omitted)
+1. **Validate project path** - Use the first argument as project path (default: current directory)
+2. **Detect formats** - Check for `.cursor/rules` and `.claude/skills` directories
+3. **Fetch latest docs** from:
+   - `https://cursor.com/docs/context/rules` (Cursor rules format)
+   - `https://code.claude.com/docs/en/skills` (Claude Skills format)
+4. **Parse existing files** - Read all RULE.md and SKILL.md files
+5. **Convert** between formats with proper metadata mapping
+6. **Validate** output meets format requirements
+7. **Handle conflicts** - Show diffs, create backups, or ask for confirmation
+8. **Generate AGENTS.md** if both formats exist
+9. **Report summary** of what was converted
 
 ## Options
 
-- `--cursor-to-claude` - Convert Cursor rules → Claude Skills
-- `--claude-to-cursor` - Convert Claude Skills → Cursor rules
-- `--both` - Convert both directions (sync)
-- `--force` - Overwrite existing files without confirmation
-- `--dry-run` - Preview changes without making them
+- `--cursor-to-claude` - Convert Cursor rules to Claude Skills
+- `--claude-to-cursor` - Convert Claude Skills to Cursor rules
+- `--both` - Sync both directions
+- `--force` - Overwrite without confirmation
+- `--dry-run` - Preview changes only
 - `--auto-backup` - Create backup before overwriting
 - `--check-sync` - Check sync status without converting
 
+## Conversion Mapping
+
+### Cursor to Claude
+- `.cursor/commands/*.md` → `.claude/skills/<name>/SKILL.md` (user-invocable, `/slash-command`)
+- `.cursor/rules/<name>/RULE.md` → `.claude/skills/<name>/SKILL.md` with `user-invocable: false` (background knowledge)
+- `description:` maps to `description:` (enhanced with triggers)
+- `globs:` included in description
+- `alwaysApply:` becomes "always active" note in description
+
+### Claude to Cursor
+- `.claude/skills/` with `user-invocable: true` or not set → `.cursor/commands/<name>.md` (slash command)
+- `.claude/skills/` with `user-invocable: false` → `.cursor/rules/<name>/RULE.md` (background knowledge)
+- `name:` becomes rule/command identifier
+- `description:` maps to `description:`
+
 ## Examples
 
-**Basic migration (auto-detect):**
 ```
-/migrate
-/migrate ~/projects/my-app
+/migrate                                          # auto-detect direction
+/migrate ~/projects/my-app --cursor-to-claude     # one direction
+/migrate ~/projects/my-app --both --auto-backup   # sync with backup
+/migrate ~/projects/my-app --both --dry-run       # preview only
+/migrate ~/projects/my-app --check-sync           # check status
 ```
-
-**Convert Cursor → Claude:**
-```
-/migrate ~/projects/my-app --cursor-to-claude
-```
-
-**Convert Claude → Cursor:**
-```
-/migrate ~/projects/my-app --claude-to-cursor
-```
-
-**Sync both directions:**
-```
-/migrate ~/projects/my-app --both
-```
-
-**Preview changes:**
-```
-/migrate ~/projects/my-app --both --dry-run
-```
-
-**Safe migration with backup:**
-```
-/migrate ~/projects/my-app --both --auto-backup
-```
-
-**Check sync status:**
-```
-/migrate ~/projects/my-app --check-sync
-```
-
-## What happens
-
-1. **Validates project path** - Checks that the path exists and is safe
-2. **Detects formats** - Finds `.cursor/rules` and `.claude/skills` directories
-3. **Fetches documentation** - Downloads latest format specs from official sources
-4. **Parses files** - Reads existing rules/skills
-5. **Converts** - Transforms between formats with proper mapping
-6. **Validates** - Checks output meets format requirements
-7. **Handles conflicts** - Shows diffs, creates backups, or asks for confirmation
-8. **Generates AGENTS.md** - Creates documentation if both formats exist
-9. **Reports summary** - Shows what was converted, errors, warnings
-
-## Output
-
-- **Converted files** - New or updated rules/skills in target format
-- **AGENTS.md** - Auto-generated when both formats exist
-- **Backup files** - Created if `--auto-backup` is used
-- **State files** - `.migration-state.json`, `.migration-history.json`
-
-## Common Workflows
-
-**First-time migration:**
-```
-/migrate ~/projects/my-app --cursor-to-claude
-```
-
-**Keep both formats in sync:**
-```
-/migrate ~/projects/my-app --both --auto-backup
-```
-
-**Preview before converting:**
-```
-/migrate ~/projects/my-app --both --dry-run
-```
-
-**Check if sync is needed:**
-```
-/migrate ~/projects/my-app --check-sync
-```
-
-## Related Commands
-
-- `/setup` - Install and configure the agent first
 
 ## Notes
 
 - Run `/setup` first if you haven't installed the agent
 - Use `--dry-run` to preview changes safely
-- Use `--auto-backup` for safe migrations
 - The agent tracks state and skips unchanged files automatically
 
