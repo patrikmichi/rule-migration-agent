@@ -287,13 +287,13 @@ def generate_agents_md(project_path: Path) -> str:
         commands_section = """
 ## Shared Commands
 
-**Commands are shared between both agents** - they use the same format (markdown files) and are available in both:
-- `.cursor/commands/` - For Cursor
-- `.claude/commands/` - For Claude Code
+Commands are available in both agents but use different formats:
+- **Cursor:** `.cursor/commands/*.md` - Standalone markdown files
+- **Claude:** `.claude/skills/*/SKILL.md` with `user-invocable: true` (or omitted, since true is the default)
 
-**Note:** When both `.cursor` and `.claude` folders are present, commands are automatically synced to both locations to ensure consistency.
+**Note:** When both `.cursor` and `.claude` folders are present, commands are automatically converted between formats.
 """
-    
+
     return f"""# AGENTS
 
 ## Cursor Agent
@@ -306,10 +306,10 @@ def generate_agents_md(project_path: Path) -> str:
 ## Claude Agent
 
 - **Skills:** `.claude/skills/` - Each Skill is a folder with `SKILL.md` file
-- **Commands:** `.claude/commands/` - Slash command definitions (`.md` files)
 - Required fields: `name`, `description` (in SKILL.md frontmatter)
-- Optional fields: `allowed-tools`, `model`, etc.
-- Description is used to trigger skill usage; instructions in markdown content
+- Optional fields: `user-invocable`, `allowed-tools`, `model`
+- Skills with `user-invocable: false` are auto-attached rules (like Cursor rules)
+- Skills with `user-invocable: true` (default) are slash commands (like Cursor commands)
 {commands_section}
 ## Shared Guidelines
 
@@ -317,14 +317,14 @@ def generate_agents_md(project_path: Path) -> str:
 - Keep Skill frontmatter descriptions aligned with Cursor rule descriptions
 - Examples should be preserved across formats where relevant
 - Where behavior differs (e.g. automatic vs explicit invocation), clarify in instructions
-- Commands are shared between both agents - keep them in sync
 
 ## Migration
 
 To migrate between formats, use the rule-migration-agent:
-- Cursor → Claude: Converts `.cursor/rules/*/RULE.md` to `.claude/skills/*/SKILL.md`
-- Claude → Cursor: Converts `.claude/skills/*/SKILL.md` to `.cursor/rules/*/RULE.md`
-- Commands: Automatically synced to both `.cursor/commands/` and `.claude/commands/` when both agents are present
+- **Cursor → Claude:** `.cursor/rules/` → `.claude/skills/` (with `user-invocable: false`)
+- **Cursor → Claude:** `.cursor/commands/` → `.claude/skills/` (with `user-invocable: true`)
+- **Claude → Cursor:** Skills with `user-invocable: false` → `.cursor/rules/`
+- **Claude → Cursor:** Skills with `user-invocable: true` → `.cursor/commands/`
 """
 
 
