@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rule-migration-agent"
-version = "1.2.0"
+version = "1.2.1"
 description = "Bidirectional conversion tool for migrating between Cursor rules and Claude Skills"
 readme = "README.md"
 requires-python = ">=3.8"

@@ -21,7 +21,7 @@ if requirements_file.exists():
 
 setup(
     name="rule-migration-agent",
-    version="1.2.0",
+    version="1.2.1",
     description="Bidirectional conversion tool for migrating between Cursor rules and Claude Skills",
     long_description=long_description,
     long_description_content_type="text/markdown",
