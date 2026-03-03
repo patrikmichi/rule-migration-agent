@@ -15,7 +15,9 @@ from converters import (
     convert_cursor_to_claude,
     convert_claude_to_cursor,
     cursor_rule_to_claude_skill,
-    claude_skill_to_cursor_rule
+    claude_skill_to_cursor_rule,
+    _rewrite_paths_for_claude,
+    _rewrite_paths_for_cursor
 )
 from utils import ConversionResult
 
@@ -105,6 +107,94 @@ Test content.
             self.assertIsInstance(result, dict)
             # Should have converted one skill
             self.assertEqual(len(result['converted']), 1)
+
+
+class TestPathRewriting(unittest.TestCase):
+    """Test path reference rewriting during conversion."""
+
+    def test_rewrite_cursor_rule_path_to_claude(self):
+        body = "See `.cursor/rules/my-rule/RULE.md` for details."
+        result = _rewrite_paths_for_claude(body)
+        self.assertIn('.claude/skills/my-rule/SKILL.md', result)
+        self.assertNotIn('.cursor', result)
+
+    def test_rewrite_cursor_command_path_to_claude(self):
+        body = "Run `.cursor/commands/deploy.md` to deploy."
+        result = _rewrite_paths_for_claude(body)
+        self.assertIn('.claude/skills/deploy/SKILL.md', result)
+        self.assertNotIn('.cursor', result)
+
+    def test_rewrite_cursor_rules_dir_to_claude(self):
+        body = "All rules live in `.cursor/rules/` directory."
+        result = _rewrite_paths_for_claude(body)
+        self.assertIn('.claude/skills/', result)
+        self.assertNotIn('.cursor', result)
+
+    def test_rewrite_cursor_bare_dir_to_claude(self):
+        body = "Check `.cursor/rules` for available rules."
+        result = _rewrite_paths_for_claude(body)
+        self.assertIn('.claude/skills', result)
+        self.assertNotIn('.cursor', result)
+
+    def test_rewrite_claude_skill_path_to_cursor(self):
+        body = "See `.claude/skills/my-skill/SKILL.md` for details."
+        result = _rewrite_paths_for_cursor(body, is_command=False)
+        self.assertIn('.cursor/rules/my-skill/RULE.md', result)
+        self.assertNotIn('.claude', result)
+
+    def test_rewrite_claude_skills_dir_to_cursor(self):
+        body = "All skills live in `.claude/skills/` directory."
+        result = _rewrite_paths_for_cursor(body, is_command=False)
+        self.assertIn('.cursor/rules/', result)
+        self.assertNotIn('.claude', result)
+
+    def test_rewrite_claude_bare_dir_to_cursor(self):
+        body = "Check `.claude/skills` for available skills."
+        result = _rewrite_paths_for_cursor(body, is_command=False)
+        self.assertIn('.cursor/rules', result)
+        self.assertNotIn('.claude', result)
+
+    def test_no_rewrite_unrelated_paths(self):
+        body = "Edit `src/components/Button.tsx` for the button."
+        result_claude = _rewrite_paths_for_claude(body)
+        result_cursor = _rewrite_paths_for_cursor(body, is_command=False)
+        self.assertEqual(body, result_claude)
+        self.assertEqual(body, result_cursor)
+
+    def test_rewrite_multiple_refs_in_body(self):
+        body = "See `.cursor/rules/foo/RULE.md` and `.cursor/commands/bar.md`."
+        result = _rewrite_paths_for_claude(body)
+        self.assertIn('.claude/skills/foo/SKILL.md', result)
+        self.assertIn('.claude/skills/bar/SKILL.md', result)
+        self.assertNotIn('.cursor', result)
+
+    def test_cursor_rule_named_ref_to_claude(self):
+        body = "Refer to `.cursor/rules/styling` for style rules."
+        result = _rewrite_paths_for_claude(body)
+        self.assertIn('.claude/skills/styling', result)
+        self.assertNotIn('.cursor', result)
+
+    def test_full_conversion_rewrites_paths(self):
+        """Test that cursor_rule_to_claude_skill rewrites paths in body."""
+        rule = {
+            'name': 'test-rule',
+            'frontmatter': {'description': 'A test rule'},
+            'body': 'Check `.cursor/rules/other/RULE.md` for more.'
+        }
+        result = cursor_rule_to_claude_skill(rule, Path('/tmp/project'), is_command=False)
+        self.assertIn('.claude/skills/other/SKILL.md', result['content'])
+        self.assertNotIn('.cursor/rules/other/RULE.md', result['content'])
+
+    def test_full_conversion_claude_to_cursor_rewrites_paths(self):
+        """Test that claude_skill_to_cursor_rule rewrites paths in body."""
+        skill = {
+            'name': 'test-skill',
+            'frontmatter': {'description': 'A test skill', 'user-invocable': False},
+            'body': 'Check `.claude/skills/other/SKILL.md` for more.'
+        }
+        result = claude_skill_to_cursor_rule(skill, Path('/tmp/project'))
+        self.assertIn('.cursor/rules/other/RULE.md', result['content'])
+        self.assertNotIn('.claude/skills/other/SKILL.md', result['content'])
 
 
 class TestStaleStateReconversion(unittest.TestCase):

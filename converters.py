@@ -61,6 +61,46 @@ try:
 except ImportError:
     TQDM_AVAILABLE = False
 
+
+def _rewrite_paths_for_claude(body: str) -> str:
+    """Rewrite .cursor path references to .claude equivalents in body content.
+
+    When converting Cursor rules to Claude skills, references to other
+    .cursor rules/commands should point to .claude skills instead.
+    """
+    # .cursor/rules/<name>/RULE.md → .claude/skills/<name>/SKILL.md
+    body = re.sub(r'\.cursor/rules/([^/\s)]+)/RULE\.md', r'.claude/skills/\1/SKILL.md', body)
+    # .cursor/rules/<name> → .claude/skills/<name>
+    body = re.sub(r'\.cursor/rules/([^/\s)]+)', r'.claude/skills/\1', body)
+    # .cursor/commands/<name>.md → .claude/skills/<name>/SKILL.md
+    body = re.sub(r'\.cursor/commands/([^.\s)]+)\.md', r'.claude/skills/\1/SKILL.md', body)
+    # .cursor/commands/ → .claude/skills/
+    body = body.replace('.cursor/commands/', '.claude/skills/')
+    # .cursor/rules/ (bare directory ref) → .claude/skills/
+    body = body.replace('.cursor/rules/', '.claude/skills/')
+    # .cursor/rules → .claude/skills (without trailing slash)
+    body = re.sub(r'\.cursor/rules(?=[)\s\n`"\']|$)', '.claude/skills', body)
+    # .cursor/commands → .claude/skills (without trailing slash)
+    body = re.sub(r'\.cursor/commands(?=[)\s\n`"\']|$)', '.claude/skills', body)
+    return body
+
+
+def _rewrite_paths_for_cursor(body: str, is_command: bool) -> str:
+    """Rewrite .claude path references to .cursor equivalents in body content.
+
+    When converting Claude skills to Cursor rules/commands, references to other
+    .claude skills should point to .cursor rules/commands instead.
+    """
+    # .claude/skills/<name>/SKILL.md → .cursor/rules/<name>/RULE.md
+    body = re.sub(r'\.claude/skills/([^/\s)]+)/SKILL\.md', r'.cursor/rules/\1/RULE.md', body)
+    # .claude/skills/<name> → .cursor/rules/<name>
+    body = re.sub(r'\.claude/skills/([^/\s)]+)', r'.cursor/rules/\1', body)
+    # .claude/skills/ → .cursor/rules/
+    body = body.replace('.claude/skills/', '.cursor/rules/')
+    # .claude/skills → .cursor/rules (without trailing slash)
+    body = re.sub(r'\.claude/skills(?=[)\s\n`"\']|$)', '.cursor/rules', body)
+    return body
+
 # Documentation URLs
 CURSOR_RULES_URL = "https://cursor.com/docs/context/rules"
 CLAUDE_SKILLS_URL = "https://code.claude.com/docs/en/skills"
@@ -227,12 +267,15 @@ def cursor_rule_to_claude_skill(rule: Dict, project_path: Path, is_command: bool
     else:
         invocable_yaml = 'user-invocable: false\n'
 
+    # Rewrite .cursor path references to .claude equivalents in the body
+    body = _rewrite_paths_for_claude(rule['body'])
+
     skill_content = f"""---
 name: {frontmatter['name']}
 description: "{description_escaped}"
 {invocable_yaml}---
 
-{rule['body']}
+{body}
 """
     
     return {
@@ -274,11 +317,14 @@ def claude_skill_to_cursor_rule(skill: Dict, project_path: Path) -> Dict:
     always_apply = 'always active' in description.lower() or 'always apply' in description.lower()
     frontmatter['alwaysApply'] = always_apply
     
+    # Rewrite .claude path references to .cursor equivalents in the body
+    body = _rewrite_paths_for_cursor(skill['body'], is_command)
+
     # Build content
     if is_command:
         # Commands are just .md files in .cursor/commands/ without frontmatter (usually)
         # or with simple description
-        content = f"# {rule_name}\n\n{skill['body']}"
+        content = f"# {rule_name}\n\n{body}"
         target_path = project_path / '.cursor' / 'commands' / f"{rule_name}.md"
     else:
         # Rules use folder-based format with RULE.md
@@ -286,14 +332,14 @@ def claude_skill_to_cursor_rule(skill: Dict, project_path: Path) -> Dict:
         if globs:
             globs_yaml = yaml.dump({'globs': frontmatter['globs']}, default_flow_style=False).strip()
             globs_yaml = f"{globs_yaml}\n" if globs_yaml else ''
-        
+
         always_apply_yaml = f"alwaysApply: {str(always_apply).lower()}\n" if always_apply else ''
-        
+
         content = f"""---
 description: "{frontmatter['description']}"
 {globs_yaml}{always_apply_yaml}---
 
-{skill['body']}
+{body}
 """
         target_path = project_path / '.cursor' / 'rules' / rule_name / 'RULE.md'
     
