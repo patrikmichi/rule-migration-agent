@@ -1,5 +1,5 @@
 ---
-name: rule-migration-agent
+name: migrate-rules
 description: Convert between Cursor rules and Claude Skills. Handles bidirectional conversion with proper command/rule distinction.
 user-invocable: false
 allowed-tools:
